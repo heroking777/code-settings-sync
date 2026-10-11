@@ -17,7 +17,9 @@ if (!process.env.VSCODE_NLS_CONFIG) {
 
 const vscodeStub = {
   extensions: {
-    getExtension: () => ({ extensionPath })
+    getExtension: () => ({ extensionPath }),
+    // Overridable in tests: `vscode.extensions.all = [...]`.
+    all: []
   },
   workspace: {
     getConfiguration: () => ({
@@ -25,7 +27,19 @@ const vscodeStub = {
     })
   },
   window: {},
-  commands: {},
+  commands: {
+    // Test hook: records disable commands; tests may replace
+    // `__executeCommandImpl` to simulate old clients.
+    __calls: [],
+    __executeCommandImpl: null,
+    executeCommand: function(command, ...args) {
+      vscodeStub.commands.__calls.push({ command, args });
+      if (vscodeStub.commands.__executeCommandImpl) {
+        return vscodeStub.commands.__executeCommandImpl(command, ...args);
+      }
+      return Promise.resolve(undefined);
+    }
+  },
   env: {},
   Uri: {
     parse: s => s,
